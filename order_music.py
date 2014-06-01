@@ -2,9 +2,10 @@
 
 import os
 from optparse import OptionParser #Optioin parse lib
+from unidecode import unidecode
 import re #For regex
 import shutil
-import eyeD3 #mp3 id3 tag handeler lib
+import eyed3 #mp3 id3 tag handeler lib
 
 def list_file(d):
   flist=[]
@@ -41,48 +42,42 @@ def store_in(lt,folder):
   for elt in lt:
     my_copy(elt,os.path.join(outdir,os.path.basename(elt)))
 
+def get_mp3_tag(_file):
+  f=eyed3.load(_file)
+  tag = dict(
+	artist=f.tag.artist,
+	album=f.tag.album,
+	title=f.tag.title,
+	track=int(f.tag.track_num[0])
+  )
+  return tag
+
 #is file ok
 def is_mp3_ok(mp3f):
-  tag = eyeD3.Tag()
-  tag.link(mp3f)
-  mp3inf = dict(
-	filepath=mp3f,
-	artist=tag.getArtist(),
-	album=tag.getAlbum(),
-	title=tag.getTitle(),
-	track=tag.getTrackNum()[0]
-	)
+  mp3inf = get_mp3_tag(mp3f)
   for k in mp3inf:
     if (not mp3inf[k]):
-      print ('%s Not correct mp3 %s is missing' % (mp3inf['filepath'],k))
+      print ('%s Not correct mp3 %s is missing' % (mp3f,k))
       return False
     if (not isinstance(mp3inf['track'], int)):
-      print ('%s the track is not an integer' % (mp3inf['filepath'],k))
+      print ('%s the track is not an integer' % (mp3f))
       return False
   return True
 
+def clean_string(_str):
+    _str=unidecode(_str)
+    _str=re.sub('[^\sA-Za-z0-9]','',_str)
+    _str=re.sub(r'\s', "_",_str)
+    return _str
 
 #treat each mp3 file
 def gen_mp3_path(mp3):
-  tag = eyeD3.Tag()
-  tag.link(mp3)
-  mp3inf = dict(
-  filepath=mp3,
-  artist=tag.getArtist(),
-  album=tag.getAlbum(),
-  title=tag.getTitle(),
-  track=tag.getTrackNum()[0]
-  )
-  (artist,album,title,track)=(
-    mp3inf['artist'],
-    mp3inf['album'],
-    mp3inf['title'],
-    mp3inf['track']
-    )
+  mp3inf = get_mp3_tag(mp3)
   #prepare output file name
-  out_file="%02d-%s.mp3" % (int(track),title.lower())
-  out_file=re.sub(r'\s', "_",out_file)
-  out_file=re.sub(r'\/',"",out_file)
+  title=clean_string(mp3inf['title'])
+  artist=clean_string(mp3inf['artist'])
+  album=clean_string(mp3inf['album'])
+  out_file="%02d-%s.mp3" % (int(mp3inf['track']),title.lower())
   directory="%s/%s" % (artist,album)
   #create directory
   #print ("out_file: %s directory:%s",out_file,directory)
